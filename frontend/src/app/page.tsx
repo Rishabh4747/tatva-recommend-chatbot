@@ -6,7 +6,9 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { Settings, Plus, MessageSquare, ChevronDown, Cpu, ChevronRight, Activity, Database, CheckCircle2, AlertCircle, Leaf, Sun, Moon, Info, PanelLeft, X, Trash2 } from 'lucide-react';
+import { Settings, Plus, MessageSquare, ChevronDown, Cpu, ChevronRight, Activity, Database, CheckCircle2, AlertCircle, Leaf, Sun, Moon, Info, PanelLeft, X, Trash2, Search, Share2, Bell, History, User, HelpCircle, FileText, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
 
 type RetrievalMode = "auto" | "fast" | "deep" | "research";
 
@@ -35,6 +37,9 @@ interface ChatSession {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
@@ -46,11 +51,18 @@ export default function Home() {
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
   
   // Layout State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
+  const [sidebarSearch, setSidebarSearch] = useState("");
   
   // Settings State
   const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>("auto");
@@ -271,6 +283,10 @@ export default function Home() {
     setExpandedThoughts(prev => ({...prev, [idx]: !prev[idx]}));
   };
 
+  const filteredSessions = sessions.filter(s => 
+    s.title.toLowerCase().includes(sidebarSearch.toLowerCase())
+  );
+
   const renderExecutionPipeline = (plan: any, latency: any, idx: number) => {
     if (!plan && !latency) return null;
     const isExpanded = expandedThoughts[idx];
@@ -334,28 +350,68 @@ export default function Home() {
     );
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white dark:bg-[#0a0a0a]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <div className="flex h-screen bg-white dark:bg-[#0a0a0a] overflow-hidden text-gray-900 dark:text-gray-100 font-sans transition-colors duration-300">
       
       {/* Sidebar */}
       <div className={`flex flex-col bg-[#f9fafb] dark:bg-[#111111] border-r border-gray-200 dark:border-gray-800 transition-all duration-300 z-20 overflow-hidden ${isSidebarOpen ? 'w-64' : 'w-0 opacity-0 border-r-0'}`}>
         <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto min-w-[256px]">
+          {/* Branding */}
+          <div className="flex items-center gap-3 px-1 select-none">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500 flex items-center justify-center shadow-sm flex-shrink-0">
+              <Leaf className="w-5 h-5 text-white" />
+            </div>
+            <div className="leading-tight">
+              <h1 className="text-[15px] font-bold text-gray-900 dark:text-gray-100">CarbonTatva AI</h1>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Emissions Intelligence</p>
+            </div>
+          </div>
+
           <button 
             onClick={handleNewChat}
-            className="flex items-center gap-2 w-full px-4 py-3 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors border border-gray-200 dark:border-gray-800 text-sm font-semibold shadow-sm text-gray-700 dark:text-gray-200 relative z-30 cursor-pointer"
+            className="flex items-center gap-2 w-full px-4 py-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-colors text-sm font-semibold shadow-sm text-white relative z-30 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             New Chat
           </button>
 
+          {/* Sidebar Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
+            <input
+              type="text"
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              placeholder="Search chats..."
+              className="w-full pl-9 pr-3 py-2.5 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:border-emerald-400 dark:focus:border-emerald-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-700 dark:text-gray-200 transition-colors"
+            />
+          </div>
+
           {/* Chat History */}
-          <div className="flex-1 mt-6 overflow-y-auto pr-1 scrollbar-hide">
-            <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 px-2">History</h3>
+          <div className="flex-1 mt-2 overflow-y-auto pr-1 scrollbar-hide">
+            <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 px-2">Recent Chats</h3>
             <div className="space-y-1">
-              {sessions.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-600 font-medium">No previous chats.</div>
+              {filteredSessions.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-600 font-medium">
+                  {sidebarSearch ? "No matching chats." : "No previous chats."}
+                </div>
               ) : (
-                sessions.map(session => (
+                filteredSessions.map(session => (
                   <div key={session.id} className="relative group">
                     <button 
                       onClick={() => switchSession(session.id)}
@@ -378,11 +434,23 @@ export default function Home() {
           </div>
 
         </div>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-1 min-w-[256px]">
+          <button className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 font-medium transition-colors cursor-pointer">
+            <Settings className="w-4 h-4" />
+            Settings
+          </button>
+          <button className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 font-medium transition-colors cursor-pointer">
+            <HelpCircle className="w-4 h-4" />
+            Help & Documentation
+          </button>
+        </div>
       </div>
       {/* Main Area */}
       <div className="flex-1 flex flex-col relative z-10 w-full bg-white dark:bg-[#0a0a0a]">
         {/* Top Header */}
-        <header className="h-16 flex items-center px-4 justify-between border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-20">
+        <header className="h-16 flex items-center px-4 sm:px-6 justify-between border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -391,20 +459,21 @@ export default function Home() {
             >
               <PanelLeft className="w-5 h-5" />
             </button>
-            
-            {/* Official Logo Area */}
-            <div className="flex items-center gap-2 select-none">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/50">
-                <Leaf className="w-5 h-5 text-emerald-500 dark:text-emerald-400 drop-shadow-sm" />
-              </div>
-              <h1 className="text-[17px] font-bold text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-1">
-                Carbon<span className="text-emerald-500 dark:text-emerald-400">Tatva</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400 dark:text-gray-500 ml-2 border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800 hidden sm:inline-block">Copilot</span>
-              </h1>
-            </div>
           </div>
           
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400" title="Search">
+              <Search className="w-5 h-5" />
+            </button>
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400" title="Share">
+              <Share2 className="w-5 h-5" />
+            </button>
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400" title="History">
+              <History className="w-5 h-5" />
+            </button>
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400" title="Notifications">
+              <Bell className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
@@ -412,6 +481,35 @@ export default function Home() {
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
+            <div className="relative ml-1">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title={user?.email}
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    {user?.name?.charAt(0)?.toUpperCase() || <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />}
+                  </span>
+                </div>
+                <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0a0a0a]" />
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowUserMenu(false); logout(); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -447,8 +545,8 @@ export default function Home() {
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role !== 'user' && (
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/50 shadow-sm mr-4 mt-1 flex-shrink-0">
-                    <Leaf className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 dark:bg-emerald-600 flex items-center justify-center shadow-sm mr-3 mt-1 flex-shrink-0">
+                    <Leaf className="w-4 h-4 text-white" />
                   </div>
                 )}
                 
@@ -478,18 +576,20 @@ export default function Home() {
                         
                         {/* Citations Area */}
                         {msg.data.citations && msg.data.citations.length > 0 && (
-                          <div className="pt-4 mt-6 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                            {msg.data.citations.map((cit: any, i: number) => (
-                              <div key={i} className="flex-shrink-0 w-64 group text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all duration-300 rounded-xl p-3 cursor-default">
-                                <div className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-1">
-                                  <span className="truncate text-xs">{cit.book}</span>
-                                  {cit.page > 0 && <span className="text-gray-500 dark:text-gray-400 text-[9px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full ml-auto font-mono">Pg {cit.page}</span>}
+                          <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800">
+                            <h4 className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+                              <FileText className="w-3 h-3" />
+                              Sources & Citations
+                            </h4>
+                            <div className="space-y-2">
+                              {msg.data.citations.map((cit: any, i: number) => (
+                                <div key={i} className="flex items-center gap-3 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition-all duration-300 rounded-lg px-3 py-2.5 cursor-default">
+                                  <FileText className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
+                                  <span className="flex-1 text-gray-700 dark:text-gray-300 font-medium truncate">{cit.book}</span>
+                                  {cit.page > 0 && <span className="text-gray-400 dark:text-gray-500 text-xs font-mono flex-shrink-0">Pg {cit.page}</span>}
                                 </div>
-                                <div className="text-gray-500 dark:text-gray-400 text-[11px] line-clamp-2 leading-relaxed">
-                                  {cit.text_snippet}
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -501,8 +601,8 @@ export default function Home() {
 
             {loadingSessions.has(currentSessionId || "") && (
               <div className="flex items-start w-full">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/50 shadow-sm mr-4 mt-1 flex-shrink-0">
-                  <Leaf className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-8 h-8 rounded-full bg-emerald-600 dark:bg-emerald-600 flex items-center justify-center shadow-sm mr-3 mt-1 flex-shrink-0">
+                  <Leaf className="w-4 h-4 text-white" />
                 </div>
                 <div className="py-2 flex items-center gap-3">
                   <div className="flex space-x-1.5">
@@ -539,7 +639,7 @@ export default function Home() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="relative flex items-end gap-2 bg-white dark:bg-[#111] border border-gray-300 dark:border-gray-700 shadow-lg rounded-2xl p-2 focus-within:border-emerald-500 dark:focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all duration-300">
+            <form onSubmit={handleSubmit} className="relative flex items-end gap-2 bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-700 shadow-md rounded-2xl p-2 focus-within:border-emerald-500 dark:focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all duration-300">
               
               {/* Inline Dropdown for Retrieval Mode */}
               <div className="relative flex-shrink-0 flex items-center gap-1 group/mode">

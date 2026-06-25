@@ -53,6 +53,14 @@ class Settings(BaseSettings):
 
     # CORS
     FRONTEND_ORIGIN: Optional[str] = None
+
+    # Auth / Users DB
+    USERS_DB_PATH: str = "app/db/users.db"
+    JWT_SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ADMIN_EMAIL: Optional[str] = None
+    ADMIN_PASSWORD: Optional[str] = None
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

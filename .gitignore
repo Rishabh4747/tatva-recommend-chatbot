@@ -35,3 +35,4 @@ Thumbs.db
 *.pdf
 .vercel
 .env*
+backend/app/db/users.db 

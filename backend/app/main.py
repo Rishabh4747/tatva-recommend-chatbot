@@ -1,11 +1,16 @@
 import os
 import time
 import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any
 
 from app.config.settings import settings
+from app.db.database import Base, SessionLocal, engine
+from app.db.models import User  # noqa: F401 — registers model with Base
+from app.db.seed import seed_admin_user
+from app.routers import admin, auth
 from app.routing.query_router import query_router
 from app.routing.retrieval_planner import retrieval_planner
 from app.models.chat import ChatRequest, QueryResponse, DebugMetadata, TitleRequest, TitleResponse
@@ -23,7 +28,21 @@ from app.generation.mistral_client import mistral_client
 from app.generation.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from app.generation.verifier import verifier
 
-app = FastAPI(title="CarbonTatva API", version="2.0.1")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_admin_user(db)
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title="CarbonTatva API", version="2.0.1", lifespan=lifespan)
+
+app.include_router(auth.router)
+app.include_router(admin.router)
 
 # Configure CORS dynamically for Render + Vercel
 allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
