@@ -199,8 +199,15 @@ async def chat_endpoint(request: ChatRequest):
         context_blocks=context_blocks
     )
     
+    conversation_history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in request.conversation_history[-10:]
+    ]
+
     try:
-        proposed_answer = await mistral_client.generate(user_prompt, SYSTEM_PROMPT)
+        proposed_answer = await mistral_client.generate(
+            user_prompt, SYSTEM_PROMPT, conversation_history=conversation_history
+        )
     except Exception as e:
         proposed_answer = "I could not retrieve enough supported context for this question, or the API request failed."
         debug_warnings.append(str(e))

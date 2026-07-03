@@ -19,15 +19,32 @@ class MistralClient:
             "Accept": "application/json"
         }
 
-    async def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Non-streaming text generation."""
-        if not self.api_key:
-            raise MistralAPIError("MISTRAL_API_KEY is not set.")
-            
+    def _build_messages(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        conversation_history: Optional[List[dict]] = None,
+    ) -> List[dict]:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
+        if conversation_history:
+            for msg in conversation_history[-10:]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": prompt})
+        return messages
+
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        conversation_history: Optional[List[dict]] = None,
+    ) -> str:
+        """Non-streaming text generation."""
+        if not self.api_key:
+            raise MistralAPIError("MISTRAL_API_KEY is not set.")
+
+        messages = self._build_messages(prompt, system_prompt, conversation_history)
 
         payload = {
             "model": self.model,
@@ -54,15 +71,17 @@ class MistralClient:
                 logger.error(f"Mistral API Request Error: {str(e)}")
                 raise MistralAPIError("Failed to communicate with Mistral API.")
 
-    async def generate_stream(self, prompt: str, system_prompt: Optional[str] = None) -> AsyncGenerator[str, None]:
+    async def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        conversation_history: Optional[List[dict]] = None,
+    ) -> AsyncGenerator[str, None]:
         """Streaming text generation."""
         if not self.api_key:
             raise MistralAPIError("MISTRAL_API_KEY is not set.")
 
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+        messages = self._build_messages(prompt, system_prompt, conversation_history)
 
         payload = {
             "model": self.model,

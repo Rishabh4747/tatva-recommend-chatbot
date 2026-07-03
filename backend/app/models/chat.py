@@ -15,10 +15,15 @@ class TitleRequest(BaseModel):
 class TitleResponse(BaseModel):
     title: str
 
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
 class ChatRequest(BaseModel):
     query: str
     retrieval_mode: Literal["auto", "fast", "deep", "research"] = "auto"
     advanced_options: AdvancedRetrievalOptions = Field(default_factory=AdvancedRetrievalOptions)
+    conversation_history: List[ConversationMessage] = Field(default_factory=list)
 
 class RetrievalPlanOutput(BaseModel):
     use_dense: bool = True

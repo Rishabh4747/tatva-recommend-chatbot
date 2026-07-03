@@ -153,6 +153,19 @@ export default function Home() {
     const finalTargetId = targetId;
 
     const userMsg = { role: "user", content: searchQuery };
+
+    const conversationHistory = messages
+      .slice(-10)
+      .map((msg) => {
+        if (msg.role === "user" && msg.content) {
+          return { role: "user" as const, content: msg.content };
+        }
+        if (msg.role === "assistant" && msg.data?.answer) {
+          return { role: "assistant" as const, content: msg.data.answer };
+        }
+        return null;
+      })
+      .filter((msg): msg is { role: "user" | "assistant"; content: string } => msg !== null);
     
     // Update local view immediately for optimistic UI
     setMessages((prev) => [...prev, userMsg]);
@@ -202,6 +215,7 @@ export default function Home() {
       const payload = {
         query: userMsg.content,
         retrieval_mode: retrievalMode,
+        conversation_history: conversationHistory,
         advanced_options: {
           force_colbert: false,
           force_hyde: false,
